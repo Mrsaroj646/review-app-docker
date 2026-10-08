@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Movie Review App</title>
+<style>
+  body{font-family:system-ui,sans-serif;max-width:900px;margin:0 auto;padding:16px;background:#f5f5f7;color:#222}
+  h1{margin-bottom:4px} .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:700px){.grid{grid-template-columns:1fr}}
+  .card{background:#fff;border-radius:10px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  input,textarea,select,button{font:inherit;padding:8px;margin:4px 0;width:100%;box-sizing:border-box}
+  button{background:#222;color:#fff;border:0;border-radius:6px;cursor:pointer;width:auto;padding:8px 16px}
+  .review{border-top:1px solid #eee;padding:8px 0} .del{background:#c33;padding:2px 8px;font-size:12px;float:right}
+  #log{height:260px;overflow:auto;border:1px solid #ddd;border-radius:6px;padding:8px;margin-bottom:8px;background:#fafafa}
+  .me{text-align:right;color:#06c} .bot{color:#222;margin:6px 0;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<h1>Movie Review App</h1>
+<p>Add reviews, then ask the AI assistant for recommendations.</p>
+<div class="grid">
+  <div class="card">
+    <h3>Add a review</h3>
+    <input id="title" placeholder="Movie title">
+    <select id="rating"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select>
+    <textarea id="text" rows="3" placeholder="Your review"></textarea>
+    <button onclick="addReview()">Submit</button>
+    <h3>Reviews</h3>
+    <div id="reviews"></div>
+  </div>
+  <div class="card">
+    <h3>AI movie assistant</h3>
+    <div id="log"></div>
+    <input id="msg" placeholder="e.g. Suggest a movie for family night" onkeydown="if(event.key==='Enter')send()">
+    <button onclick="send()">Send</button>
+  </div>
+</div>
+<script>
+async function load(){
+  const list = await (await fetch('/api/reviews')).json();
+  document.getElementById('reviews').innerHTML = list.map(r =>
+    `<div class="review"><button class="del" onclick="del('${r._id}')">x</button>
+     <b>${esc(r.title)}</b> &mdash; ${r.rating}/5<br>${esc(r.text)}</div>`).join('') || 'No reviews yet.';
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+async function addReview(){
+  const title=document.getElementById('title').value.trim();
+  if(!title) return alert('Enter a movie title');
+  await fetch('/api/reviews',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({title,rating:+document.getElementById('rating').value,text:document.getElementById('text').value})});
+  document.getElementById('title').value='';document.getElementById('text').value='';load();
+}
+async function del(id){await fetch('/api/reviews/'+id,{method:'DELETE'});load();}
+async function send(){
+  const input=document.getElementById('msg'),log=document.getElementById('log'),m=input.value.trim();
+  if(!m) return; input.value='';
+  log.innerHTML+=`<div class="me">${esc(m)}</div>`;
+  const wait=document.createElement('div');wait.className='bot';wait.textContent='Thinking...';log.appendChild(wait);
+  const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:m})});
+  wait.textContent=(await r.json()).reply;log.scrollTop=log.scrollHeight;
+}
+load();
+</script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "name": "review-app",
+  "version": "1.0.0",
+  "description": "Movie Review App with AI chatbot (Express + MongoDB + Ollama) running in Docker Compose",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "dependencies": {
+    "express": "^4.19.2",
+    "mongoose": "^8.5.0"
+  }
+}
