@@ -8,10 +8,12 @@ services:
       - PORT=3000
       - MONGO_URI=mongodb://db:27017/reviewapp
       - OLLAMA_HOST=http://ollama:11434
-      - OLLAMA_MODEL=llama3.2:1b
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:1b}
     depends_on:
-      - db
-      - ollama
+      db:
+        condition: service_healthy
+      ollama:
+        condition: service_started
     restart: unless-stopped
 
   db:
@@ -19,6 +21,11 @@ services:
     container_name: review-app-db
     volumes:
       - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
 
   ollama:
@@ -27,6 +34,17 @@ services:
     volumes:
       - ollama_data:/root/.ollama
     restart: unless-stopped
+
+  # One-off helper that downloads the AI model, then exits
+  ollama-pull:
+    image: ollama/ollama:latest
+    container_name: review-app-ollama-pull
+    environment:
+      - OLLAMA_HOST=ollama:11434
+    entrypoint: ["sh", "-c", "sleep 5 && ollama pull ${OLLAMA_MODEL:-llama3.2:1b}"]
+    depends_on:
+      - ollama
+    restart: "no"
 
 volumes:
   mongo_data:
